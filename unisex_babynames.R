@@ -1,14 +1,16 @@
-# https://flowingdata.com/2013/09/25/the-most-unisex-names-in-us-history/
+
+# Load libraries ----------------------------------------------------------
 library(tidyverse)
 library(babynames)
 library(ggtext)
 library(glue)
-library(ggforce)
-
-library(gggrid) # https://github.com/pmur002/gggrid remotes::install_github("pmur002/gggrid")
+library(gggrid) # remotes::install_github("pmur002/gggrid")
 library(packcircles)
-library(hrbragg) # github.com/hrbrmstr/hrbragg
+library(hrbragg) # remotes::install_github("hrbrmstr/hrbragg")
 library(cowplot)
+
+
+# Data wrangling ----------------------------------------------------------
 popular_unisex_names <- c("Jessie","Marion","Jackie","Alva","Ollie",
                           "Jody","Cleo","Kerry","Frankie","Guadalupe",
                           "Carey","Tommie","Angel","Hollis","Sammie",
@@ -24,16 +26,15 @@ babynames_df <- babynames %>%
   filter(year > 1925)
 
 
-(unisex_babynames <- babynames_df %>%
+unisex_babynames <- babynames_df %>%
   pivot_wider(names_from = sex, values_from = n) %>% 
   filter(!is.na(`F`), !is.na(`M`)) %>% 
   mutate(
-    prop_f = `F`/(`F`+`M`),
-    prop_m = `M`/(`F`+`M`)
+    prop_f = `F`/(`F`+`M`), # Proportion of girls
+    prop_m = `M`/(`F`+`M`) # Proportion of boys 
     )
-)  
 
-
+# Compute Proportions distance Means for order names 
 (most_unisex_props_means <-  unisex_babynames %>% 
     mutate(prop_dist = abs(prop_f-prop_m)) %>% 
     group_by(name) %>% 
@@ -41,38 +42,36 @@ babynames_df <- babynames %>%
     mutate(rank = rank(prop_dist_mean)) %>% 
     arrange(rank))
 
-
-(unisex_babynames <- unisex_babynames %>% 
+# Order names by proortion distance means 
+unisex_babynames <- unisex_babynames %>% 
     left_join(most_unisex_props_means, by = "name") %>% 
     mutate(
-    name = glue("{rank}. {name}"),
-    name = fct_reorder(name,rank)
+    name_ranked = glue("{rank}. {name}"),
+    name_ranked = fct_reorder(name_ranked,rank)
     )
-)
 
-(most_unisex_year <- unisex_babynames  %>% 
+# Determine most unisex year for each name 
+most_unisex_year <- unisex_babynames  %>% 
     mutate(prop_dist = abs(prop_f-prop_m)) %>% 
-    group_by(name) %>% 
+    group_by(name_ranked) %>% 
     slice_min(prop_dist,n=1, with_ties = F) %>% 
     ungroup() 
-)
 
-(most_unisex_year %>% 
-    filter(rank == 1)
-)
-
+# Function for normalize between range ( I use that inside grobs for panels annotations )
 range_between <-  function(x,range){ (x-min(range)) / (max(range)-min(range)) }
 
+# Jackie Robinson introduction to MLB 
 j_rob_in_mlb <- unisex_babynames %>% 
-  filter(year == 1947, name == '4. Jackie')
+  filter(year == 1947, name == 'Jackie')
 
-
+# Graphic -----------------------------------------------------------------
 (plot <- unisex_babynames %>%   
 ggplot(aes(year)) + 
   geom_ribbon(aes(ymin = 0, ymax = prop_f), fill = "#E3837D")+
   geom_ribbon(aes(ymin = prop_f, ymax = 1), fill = "#96CBFE")+
-  
 geom_line(aes(y=prop_f), size = 0.35) +
+  
+  facet_wrap(~name_ranked, ncol = 7, scales ='free_x')+
   scale_x_continuous(
     name = NULL,
     breaks = c(1940,1960,1980,2000),
@@ -83,7 +82,6 @@ geom_line(aes(y=prop_f), size = 0.35) +
     breaks = c(0,0.5,1),
     labels = scales::percent
   )+
-  facet_wrap(~name, ncol = 7, scales ='free_x')+
   grid_panel(
     grob = function(data, coords) {
       if (data$PANEL[1] == 1) {
@@ -92,7 +90,7 @@ geom_line(aes(y=prop_f), size = 0.35) +
         gList(
           segmentsGrob(
             .x, .y,
-            unit(.x - 0.15, "npc"),
+            unit(.x - 0.125, "npc"),
             unit(.y, "npc"),
             gp = gpar(
               col = "black",
@@ -100,8 +98,8 @@ geom_line(aes(y=prop_f), size = 0.35) +
             )
           ),
           segmentsGrob(
-            .x-0.15, .y,
-            unit(.x - 0.15, "npc"),
+            .x-0.125, .y,
+            unit(.x - 0.125, "npc"),
             unit(.y -0.080, "npc"),
             gp = gpar(
               col = "black",
@@ -110,12 +108,12 @@ geom_line(aes(y=prop_f), size = 0.35) +
           ),
           textGrob(
             label = "Most\n unisex year",
-            x = unit(.x- 0.10, "npc"),
+            x = unit(.x- 0.075, "npc"),
             y = unit(.y -.075,  "npc"),
             just = c("center", "top"),
             gp = gpar(
               col = "black",
-              fontfamily = "Lato Light",
+              fontfamily = "Lato",
               fontsize = 8
             )
           ),
@@ -164,7 +162,7 @@ geom_line(aes(y=prop_f), size = 0.35) +
             just = c("right", "top"),
             gp = gpar(
               col = "black",
-              fontfamily = "Lato Light",
+              fontfamily = "Lato",
               fontsize = 8
             )
           )
@@ -191,7 +189,7 @@ geom_line(aes(y=prop_f), size = 0.35) +
             just = c("center", "bottom"),
             gp = gpar(
               col = "black",
-              fontfamily = "Lato Light",
+              fontfamily = "Lato",
               fontsize = 8
             )
           )
@@ -206,7 +204,7 @@ geom_line(aes(y=prop_f), size = 0.35) +
             just = c("center", "top"),
             gp = gpar(
               col = "black",
-              fontfamily = "Lato Light",
+              fontfamily = "Lato",
               fontsize = 8
             )
           )
@@ -241,7 +239,7 @@ geom_line(aes(y=prop_f), size = 0.35) +
             just = c("center", "top"),
             gp = gpar(
               col = "black",
-              fontfamily = "Lato Light",
+              fontfamily = "Lato",
               fontsize = 8
             )
           )
@@ -274,5 +272,6 @@ plot <- ggdraw(plot) +
   theme(plot.background = element_rect(fill="white", color = NA),
         plot.margin = margin(t = 10, r = 5, b = 10, l = 5))
 
+# Saving
 ggsave("unisex_babynames.png", plot, width = 12, height = 9, dpi = 300, type = 'cairo')
      

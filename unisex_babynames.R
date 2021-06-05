@@ -184,7 +184,7 @@ geom_line(aes(y=prop_f), size = 0.35) +
           
           textGrob(
             label = "Jackie Robinson\n to Major League",
-            x = unit(.x, "npc"),
+            x = unit(.x+0.1, "npc"),
             y = unit(.y + 0.25, "npc"),
             just = c("center", "bottom"),
             gp = gpar(
